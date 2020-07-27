@@ -1,7 +1,0 @@
-//Setting parameters as input
-action parameter query "setDownloadCacheSize" with description "Please enter the download cache size you would like to to set in MB (valid limits range from 1024 to 2147483647 bytes/sec):"
-//check for numbers ONLY
-continue if {parameter "setDownloadCacheSize" of action as integer>= 1 AND parameter "setDownloadCacheSize" of action as integer <= 2147483647}
-
-setting "_BESClient_Download_PreCacheStageDiskLimitMB"="{parameter "setDownloadCacheSize" of action}" on "{parameter "action issue date" of action}" for client
-setting "_BESClient_Download_NormalStageDiskLimitMB"="{parameter "setDownloadCacheSize" of action}" on "{parameter "action issue date" of action}" for client

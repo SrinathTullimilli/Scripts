@@ -1,0 +1,25 @@
+Add-PSSnapin Vmware*
+Connect-VIServer <Your VCenter Name>
+$list = gc "C:\temp\junk3.txt"
+function Get-VMLastPoweredOffDate {
+  param([Parameter(Mandatory=$true,ValueFromPipeline=$true)]
+        [string]$vmName)
+  process {
+  	$vm = Get-VM $vmName
+    $Report = "" | Select-Object -Property Name,LastPoweredOffDate,UserName
+	$Report.Name = $_.Name
+    $Event = Get-VIEvent -Entity $vm | Sort-Object -Property CreatedTime -Descending | `
+      Where-Object { $_.Gettype().Name -eq "VmPoweredOffEvent" } | `
+	  Select-Object -First 1
+	$Report.LastPoweredOffDate = $Event.CreatedTime
+	$Report.UserName = $Event.UserName
+	$Report
+  }
+}
+	New-VIProperty -Name LastPoweredOffDate -ObjectType VirtualMachine -Value {(Get-VMLastPoweredOffDate -vm $Args[0]).LastPoweredOffDate}
+	New-VIProperty -Name LastPoweredOffUserName -ObjectType VirtualMachine -Value {(Get-VMLastPoweredOffDate -vm $Args[0]).UserName}
+foreach ($l in $list){
+	$res = Get-VM $l | Select-Object -property Name,LastPoweredOffDate,LastPoweredOffUserName
+	$res | ConvertTo-Csv -NoTypeInformation  | Out-File results.csv -Append
+}
+

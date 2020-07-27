@@ -1,0 +1,19 @@
+//Setting parameters as input to modify PreCache Setting
+action parameter query "setDownloadCacheSize" with description "Please enter the download cache size you would like to to set in MB (valid limits range from 1024 to 2147483647 bytes/sec):"
+//check for numbers ONLY
+continue if {parameter "setDownloadCacheSize" of action as integer>= 1 AND parameter "setDownloadCacheSize" of action as integer <= 2147483647}
+
+setting "_BESClient_Download_PreCacheStageDiskLimitMB"="{parameter "setDownloadCacheSize" of action}" on "{parameter "action issue date" of action}" for client
+setting "_BESClient_Download_NormalStageDiskLimitMB"="{parameter "setDownloadCacheSize" of action}" on "{parameter "action issue date" of action}" for client
+
+// Genrate Prefetch command from Softwate distribution wizard where Powershell or batch scripts and Large 20 gig Files were Uploaded
+prefetch
+extract 
+
+//Action Commands 
+wait cmd.exe /c __Download\BFArchive.exe -x "__Download\<SHA FILES>" "C:\_Source"
+wait cmd.exe /c erase /F /Q "C:\Program Files (x86)\BigFix Enterprise\BES Client\__BESData\__Global\__Cache\Downloads\*.*"
+wait cmd.exe /c powershell.exe -ExecutionPolicy Bypass -f "c:\_source\yourPowershellFile.ps1"
+
+//Validate the Action
+continue if {exit code of action = 0}

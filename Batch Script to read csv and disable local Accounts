@@ -1,0 +1,2 @@
+@ECHO OFF
+for /F "tokens=1-2 delims=," %%i in ('type DisableLocalAccounts.csv ^|find /i "%%computername%%"') do (net user %%j /active:no)

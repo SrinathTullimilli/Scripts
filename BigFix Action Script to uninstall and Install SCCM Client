@@ -1,0 +1,18 @@
+//Download from the Root as tmp file
+Generate your Prefetch command from Software distribution Wizard where the ccmsetup.exe was upladed
+
+//Extract the tmp file to C:\_source
+wait cmd.exe /c __Download\BFArchive.exe -x "__Download\your Generated SHA File" "C:\_Source"
+
+//Uninstall the SCCM Clinet
+wait cmd.exe /c "C:\_Source\Microsoft SCCM 2016 Client\ccmsetup.exe" /uninstall
+
+//pause for 10 min
+parameter "start" = "{now}"
+pause while {now < ( (( parameter "start" of action ) as time ) + 600* second)}
+
+//Now go ahead and Install the Client
+wait cmd.exe /c "C:\_Source\Microsoft SCCM 2016 Client\ccmsetup.exe" /UsePKICert /NoCRLCheck SMSMP=<your MangementPoint Server> SMSSITECODE=<your Site code> 
+
+//Validate
+continue if {exit code of action = 0}

@@ -1,0 +1,24 @@
+@ECHO off
+SET _PollingInterval=1
+
+:BatchStart
+
+   powershell.exe -command "Start-Sleep -s 3"
+   powershell.exe -executionpolicy bypass -windowstyle hidden -noninteractive -nologo -file "C:\Automation\Scripts\MouseClicker.ps1" 
+   powershell.exe -command "Start-Sleep -s 3"
+
+
+:Start
+
+:: PING 127.0.0.1 -n %_PollingInterval% >nulTIMEOUT /T %_PollingInterval%
+
+SET PID=
+FOR /F "tokens=2 delims= " %%i IN ('TASKLIST ^| FIND /i "WebBotsDebug29.exe"') DO SET PID=%%i
+
+IF [%PID%]==[] (
+    ECHO Application was not running.
+    GOTO BatchStart
+)
+
+GOTO Start
+GOTO:EOF

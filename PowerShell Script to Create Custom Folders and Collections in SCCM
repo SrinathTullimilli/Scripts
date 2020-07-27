@@ -21,7 +21,7 @@
    
    #Read list of computers from the text file
    set-location "c:\"
-   $computers = get-content "\\uspmvmgt053\D$\GTI\Platform Services\Platform Control\Automation\universe\products\ScriptForCollectionsInSCCM\CustomCollectionComputers.txt"
+   $computers = get-content "<Input the List of Servers you wanna add in txt File"
   
    foreach($computer in $computers) {
         try {

@@ -1,0 +1,25 @@
+Param(
+        [Parameter(Mandatory = $true)][string]$hostnamefile
+	)
+
+$hl = gc $hostnamefile
+foreach ($h in $hl){
+	try{
+		$wmi = gwmi -namespace root/hpq -cn $h HPSA_DiskPhysicalPackage
+		foreach ($disk in $wmi){
+			$obj  = New-Object PSCustomObject
+			$obj | Add-Member -MemberType NoteProperty -Name "Server Name" -Value $h
+			$obj | Add-Member -MemberType NoteProperty -Name "Disk" -Value $disk.Name
+			$obj | Add-Member -MemberType NoteProperty -Name "HP Model Number" -Value $disk.Model
+			$obj | Export-Csv c:\scripts\Raoul\GetHPDriveModelNumbers\hpdrivemodelnumbers.csv -Append -NoTypeInformation -NoClobber
+		}
+	}
+	catch{
+		$obj  = New-Object PSCustomObject
+			$obj | Add-Member -MemberType NoteProperty -Name "Server Name" -Value $h
+			$obj | Add-Member -MemberType NoteProperty -Name "Disk" -Value "No Data Gathered"
+			$obj | Add-Member -MemberType NoteProperty -Name "HP Model Number" -Value "No Data Gathered"
+			$obj | Export-Csv c:\scripts\Raoul\GetHPDriveModelNumbers\hpdrivemodelnumbers.csv -Append -NoTypeInformation -NoClobber
+	}
+}
+

@@ -1,0 +1,43 @@
+Param(
+        [Parameter(Mandatory = $true)][string]$hostnamefile
+	)
+
+$servers = gc $hostnamefile
+$credential = New-Object System.Management.Automation.PSCredential("Username","Password")
+
+foreach($hostname in $servers){
+    try{
+        $isAlive = New-Object System.Net.Sockets.TcpClient -ArgumentList "$hostname",3389
+        $isAlive = $isAlive.Connected
+		if(!$isAlive){
+			$isAlive = New-Object System.Net.Sockets.TcpClient -ArgumentList "$hostname",22
+        	$isAlive = $isAlive.Connected
+		}
+		try{
+			$OS = gwmi Win32_OperatingSystem -computername $hostname -Credential $Credential -ErrorAction Stop
+			$LBTime = $OS.ConvertToDateTime($OS.Lastbootuptime) 
+            [TimeSpan]$uptime = New-TimeSpan $LBTime $(get-date) 
+            $res =  (($OS.lastbootuptime).Substring(0,4)  + "/" +  ($OS.lastbootuptime).Substring(4,2) + "/" +  ($OS.lastbootuptime).Substring(6,2)  + " " +   ($OS.lastbootuptime).Substring(8,2)  + ":" +   ($OS.lastbootuptime).Substring(10,2)  + ":" +  ($OS.lastbootuptime).Substring(12,2))
+		}
+		catch{
+			$res =  "Error;" + $_.Exception.Message
+		}
+		
+        $obj = New-Object PSCustomObject
+		$obj | Add-Member -Name "Hostname" -MemberType NoteProperty -Value $hostname
+		$obj | Add-Member -Name "RDP" -MemberType NoteProperty -Value $isAlive
+		$obj | Add-Member -Name "WMI" -MemberType NoteProperty -Value $res
+		$obj | export-csv c:\scripts\raoul\RDPTest.csv -noTypeInformation -Append
+    }
+    catch{
+        $status = $_.Exception.Message
+      	$obj = New-Object PSCustomObject
+		$obj | Add-Member -Name "Hostname" -MemberType NoteProperty -Value $hostname
+		$obj | Add-Member -Name "RDP" -MemberType NoteProperty -Value $status
+		$obj | Add-Member -Name "WMI" -MemberType NoteProperty -Value $res
+        $obj | export-csv c:\scripts\srinath\RDPTest.csv -noTypeInformation -Append
+    }
+}
+
+
+  

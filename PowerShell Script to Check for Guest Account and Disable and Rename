@@ -1,0 +1,20 @@
+$localServer = $env:COMPUTERNAME
+function disableAccount($account){
+	if($account.Disabled -eq $false){
+			$account.Disabled = $true
+		}
+		$account.Put();
+}
+function renameAccount($account){
+	$newname = $localServer + "_Guest"
+	$account.Rename($newname)
+}
+try{
+	$user = Get-WmiObject Win32_UserAccount -Filter "Name='Guest'" | where Domain -Match $localServer
+	#there is a user account, disable first, then rename
+	disableAccount $user
+	renameAccount $user
+}
+catch{
+	#NoGuestAccount
+}

@@ -1,0 +1,11 @@
+$machines = Get-Content C:\Scripts\srinath\Lastbootime\ExchangeN01Targets.txt
+$report = @() 
+$object = @() 
+
+foreach($machine in $machines) 
+{ 
+$machine 
+$object = gwmi win32_operatingsystem -ComputerName $machine | select csname, @{LABEL='LastBootUpTime';EXPRESSION={$_.ConverttoDateTime($_.lastbootuptime)}} 
+$report += $object 
+} 
+$report | Export-csv C:\Scripts\srinath\Lastbootime\Results.csv

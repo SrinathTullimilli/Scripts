@@ -1,0 +1,63 @@
+$path = "C:\Scripts\srinath\PostPatchCheckout\RDP_TestTargets.txt" 
+$objExcel = new-object -comobject excel.application  
+ 
+if (Test-Path $path)  
+     {  
+         $objWorkbook = $objExcel.WorkBooks.Open($path)  
+         $objWorksheet = $objWorkbook.Worksheets.Item(1)  
+      } 
+ 
+else {  
+         $objWorkbook = $objExcel.Workbooks.Add()  
+         $objWorksheet = $objWorkbook.Worksheets.Item(1) 
+     } 
+ 
+         $objExcel.Visible = $True 
+ 
+         $objWorksheet.Cells.Item(1, 1) = "HostName" 
+         $objWorksheet.Cells.Item(1, 2) = "Server Online?" 
+         $objWorksheet.Cells.Item(1, 3) = "Resolve to ip?"
+        
+$servers = gc C:\Scripts\srinath\PostPatchCheckout\RDP_TestTargets.txt
+$count = $servers.count 
+ 
+$row=2
+
+$servers | foreach-object { 
+    
+              $ping=$null 
+              $Addresses=$null
+              $sysinfo=$null
+              $systype=$null
+              $server = $_ 
+    
+              $ping = Test-Connection $server -Count 1 -ea silentlycontinue 
+
+
+if($ping)  { 
+ 
+            $objWorksheet.Cells.Item($row,1) = $server 
+            $objWorksheet.Cells.Item($row,2) = "Responding"
+
+   
+            $Addresses = [System.Net.Dns]::GetHostAddresses("$Server").IPAddressToString 
+            $objWorksheet.Cells.Item($row,3) = $Addresses  
+            $ErrorActionPreference = "silentlycontinue"
+          
+    
+    $row++
+} 
+  
+else{
+
+            $objWorksheet.Cells.Item($row,1) = $server 
+            $objWorksheet.Cells.Item($row,2) = "Failed" 
+
+            $Addresses = [System.Net.Dns]::GetHostAddresses("$Server").IPAddressToString 
+            $objWorksheet.Cells.Item($row,3) = $Addresses
+            $ErrorActionPreference = "silentlycontinue"
+         
+
+   $row++
+
+}}

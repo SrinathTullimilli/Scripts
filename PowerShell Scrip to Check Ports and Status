@@ -1,0 +1,53 @@
+Param(
+        [Parameter(Mandatory = $true)][string]$hostnamefile,
+		[Parameter(Mandatory = $true)]$port
+	)
+
+$hosts = Get-Content $hostnamefile
+
+$tabName = "Port Checker for Port $port"
+
+#Create Table object
+$table = New-Object system.Data.DataTable "$tabName"
+
+#Define Columns
+$col1 = New-Object system.Data.DataColumn "HostName",([string])
+$col2 = New-Object system.Data.DataColumn "Responds on Port",([string])
+
+
+#Add the Columns
+$table.columns.add($col1)
+$table.columns.add($col2)
+
+foreach ($hostname in $hosts){
+
+    try{
+        $isAlive = New-Object System.Net.Sockets.TcpClient -ArgumentList "$hostname",$port
+        $isAlive = $isAlive.Connected
+
+        #Create a row
+        $row = $table.NewRow()
+        #Enter data in the row
+        $row."Hostname" = $hostname 
+        $row."Responds on Port" = $isAlive
+        #Add the row to the table
+        $table.Rows.Add($row)
+    }
+    catch{
+        $status = $_.Exception.Message
+        #Create a row
+        $row = $table.NewRow()
+        #Enter data in the row
+        $row."Hostname" = $hostname 
+        $row."Responds on Port" = $status
+        #Add the row to the table
+        $table.Rows.Add($row)
+        Continue
+    }
+}
+#Display the table
+$table | format-table
+$tabCsv = $table | export-csv Port$portTest.csv -noType
+
+
+  

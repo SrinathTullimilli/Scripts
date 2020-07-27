@@ -1,0 +1,31 @@
+$sourceFile = "C:\Input.txt"
+$source = "C:\_Source"
+$dest = "C$"
+$remoteDest = "C$\File.exe"
+
+foreach ($server in $(get-content $sourceFile)) {
+    if (test-connection -Cn $server -quiet){
+        Write-host "Server $server is online!"
+        $testpath = "\\$server\$remoteDest"
+        if (Test-Path -path $testpath){
+            Write-host "Content Already Exists, Attempting to run installation"
+            .\PsExec.exe \\$server c:\File.exe /silentmode
+            Write-Host -foregroundColor Green "Installation sucessful on $server"
+        }
+        else{
+            copy-item $source -Destination \\$server\$dest -Recurse -Force
+            Write-HOst "Test Path is $testpath"
+            if (Test-Path -path $testpath){
+                Write-host "Content Successfully Copied"
+                .\PsExec.exe \\$server c:\File.exe /silentmode
+                Write-Host -foregroundColor Green "Installation sucessful on $server"
+            }
+        }
+        
+    }
+    else {
+         write-host -ForegroundColor Red "$server is not online,Install failed"
+    }
+}
+
+ 

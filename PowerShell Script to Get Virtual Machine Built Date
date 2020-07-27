@@ -1,0 +1,26 @@
+$cred = Get-Credential
+foreach ($vc in $(gc c:\temp\vc-servers.txt)) {
+	try{
+		Connect-VIServer $vc -Credential $cred
+		try{
+			Get-VMHost | Sort Name | %{
+			   $thisUUID = (Get-EsxCli -VMHost $_.name).system.uuid.get()
+			   $decDate = [Convert]::ToInt32($thisUUID.Split("-")[0], 16)
+			   $installDate = [timezone]::CurrentTimeZone.ToLocalTime(([datetime]'1/1/1970').AddSeconds($decDate))
+			   $vmhost = [pscustomobject][ordered]@{
+			     Name="$($_.name)"
+			     InstallDate=$installDate
+			   }# end custom object
+			   $vmhost | Export-Csv "vmhostInstallDate.csv" -Append 
+			} # end host loop
+			Disconnect-VIServer $vc
+		}
+		catch{
+			Write-Error $_
+			Disconnect-VIServer $vc
+		}
+	}
+	catch{
+		Write-Error "Failed to connect to $vc!"
+	}
+}

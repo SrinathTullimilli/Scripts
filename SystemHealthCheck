@@ -1,0 +1,107 @@
+Param($ComputerName = "LocalHost")
+    Write-Host "Checking Health Check for the Server [$ComputerName]:"
+    $StrRow = ""
+    $StrRow =  $StrRow + $ComputerName
+    $Password = your password
+    ##########################
+    Write-Host "Ping Test[$ComputerName]: "
+    if (test-Connection -ComputerName $ComputerName -Count 2 -Quiet ) 
+    {  
+        write-Host "$ComputerName Ping : OK" -ForegroundColor Green 
+        $StrRow =  $StrRow + ";" + "OK"
+    } 
+    else 
+    {
+        write-Host "$ComputerName Ping :  FAILED" -ForegroundColor Red
+        $StrRow =  $StrRow + ";" + "FAILED"
+        $x+=1
+        $StrRow =  $StrRow + ";" + "FAILED;;" 
+        New-Object PSObject -Property @{ 
+                    StrRow = $StrRow}
+
+        return
+    }     
+
+    ##########################
+    $IPAddress=""
+    try
+    {
+        $IPAddress = (Test-Connection $computername -count 1 | select Ipv4Address).Ipv4Address
+    }
+    catch
+    {
+        $IPAddress="Failed"
+    }
+    Write-Host "$computername IpAddress: $IPAddress"
+    $StrRow =  $StrRow + " [$IPAddress]"
+    ##########################
+    Write-Host "Running RDP Test[$ComputerName]: "
+    $Port = 3389
+    $Socket = New-Object Net.Sockets.TcpClient
+    $ErrorActionPreference = 'SilentlyContinue'
+    $Socket.Connect($ComputerName , $Port)
+    $ErrorActionPreference = 'Continue'
+    if ($Socket.Connected) {
+                write-Host "Telnet[$Port] : OK" -ForegroundColor Green 
+                $Socket.Close()        
+                $StrRow =  $StrRow + ";" + "Telnet [$Port] : OK"
+              
+            }        
+            else {
+                write-Host "Telnet[$Port] : FAILED" -ForegroundColor Red   
+                $StrRow =  $StrRow + ";" + "Telnet [$Port] : FAILED"
+            }       
+    $Socket = $null
+
+
+    $WMIPort = 135
+    $WMISocket = New-Object Net.Sockets.TcpClient
+    $ErrorActionPreference = 'SilentlyContinue'
+    $WMISocket.Connect($ComputerName , $WMIPort)
+    $ErrorActionPreference = 'Continue'
+    if ($WMISocket.Connected) {
+                write-Host "Telnet[$WMIPort] : OK" -ForegroundColor Green 
+                $WMISocket.Close()        
+                $StrRow =  $StrRow + ";" + "OK"
+              
+            }        
+            else {
+                write-Host "Telnet[$Port] : FAILED" -ForegroundColor Red   
+                $StrRow =  $StrRow + ";" + "FAILED!"
+            }       
+    $WMISocket = $null
+
+
+    <#
+    $strWMIPort = Test-NetConnection -ComputerName $computername -Port 135 | select TcpTestSucceeded -ExpandProperty TcpTestSucceeded
+    
+    if($strWMIPort -ne $true){
+        $strWMIPort = "FAILED!"
+        $StrRow =  $StrRow + ";" + $strWMIPort
+    } else {
+        $strWMIPort = "OK"
+        $StrRow =  $StrRow + ";" + $strWMIPort
+    }
+    #>
+
+    ##########################
+    try
+    {
+    
+    $OS = gwmi Win32_OperatingSystem -computername $ComputerName -Credential $Credential -ErrorAction Stop
+            $LBTime = $OS.ConvertToDateTime($OS.Lastbootuptime) 
+            [TimeSpan]$uptime = New-TimeSpan $LBTime $(get-date) 
+            #$StrRow =  $StrRow + ";" + "$($OS.ConverttoDateTime($OS.lastbootuptime))"
+            $StrRow =  $StrRow + ";" + (($OS.lastbootuptime).Substring(0,4)  + "/" +  ($OS.lastbootuptime).Substring(4,2) + "/" +  ($OS.lastbootuptime).Substring(6,2)  + " " +   ($OS.lastbootuptime).Substring(8,2)  + ":" +   ($OS.lastbootuptime).Substring(10,2)  + ":" +  ($OS.lastbootuptime).Substring(12,2))
+            Write-output "$($OS.ConverttoDateTime($OS.lastbootuptime))"
+            Write-output "Uptime: $($uptime.days) Days $($uptime.hours) Hours $($uptime.minutes) Minutes $($uptime.seconds) Seconds" 
+            $StrRow =  $StrRow + ";" +  "$($uptime.days) Days $($uptime.hours) Hours $($uptime.minutes) Minutes $($uptime.seconds) Seconds" 
+            New-Object PSObject -Property @{ 
+                    StrRow = $StrRow}
+     }
+     catch
+     {
+         $StrRow =  $StrRow + ";" + "Error;" + $_.Exception.Message
+         New-Object PSObject -Property @{ 
+                    StrRow = $StrRow}
+     }

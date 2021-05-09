@@ -1,0 +1,26 @@
+#Connecting to SCCM Primary Site Server
+$session = New-pssession -computername <your site servername> -ConfigurationName Microsoft.PowerShell32
+write-host -ForegroundColor Green "Connecting to <your site servername> is Successful"
+
+# Import Module #
+Import-Module D:\AdminConsole\bin\ConfigurationManager.psd1
+
+# Ensure PSDrive is setup
+Remove-PSDrive BLK 
+$SiteCode = Get-PSDrive -PSProvider CMSITE
+Set-location $SiteCode":"
+
+#Define Variables
+$DeploymentName =  "Test"
+$SoftwareUpdateGroupName = "2020 Microsoft Windows Server Patch Master Package"
+$CollectionName = "08112020"
+$Description = "Test"
+$AvailbleTime = "2020/08/09 01:00AM"
+$ExceutionTime = "2020/08/09 03:00AM"
+$AutoReboot =  $True
+$NoReboot = $False
+$SupressRestartServer = $True
+$SupressRestartWorkStation = $True
+
+#Create SCCM Deployment
+New-CMSoftwareUpdateDeployment -DeploymentName $DeploymentName -SoftwareUpdateGroupName $SoftwareUpdateGroupName -CollectionName $CollectionName -Description $Description  -DeploymentType Required  -VerbosityLevel AllMessages -AvailableDateTime $AvailbleTime -DeadlineDateTime $ExceutionTime -UserNotification HideAll -SoftwareInstallation $True -AllowRestart $NoReboot -RestartServer $SupressRestartServer -RestartWorkstation $SupressRestartWorkStation -PersistOnWriteFilterDevice $True -RequirePostRebootFullScan $False -ProtectedType RemoteDistributionPoint -DisableOperationsManagerAlert $True -GenerateOperationsManagerAlert $False

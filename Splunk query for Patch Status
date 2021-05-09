@@ -1,0 +1,7 @@
+index=wineventlog  (sourcetype="WinEventLog:System" OR sourcetype="WinEventLog:Application") (EventCode=19 OR EventCode=1022 OR EventCode=6005 OR EventCode=20)
+| rex field=_raw "S(?<KB>\w*)E"             
+| search Keywords="Installation, Failure"
+| eval patch_status = if(Keywords="Installation, Success","Update Successful",if(Keywords="Installation, Failure","Update Failed","Not Found")) 
+| eval format_time=strftime(_time, "%m/%d/%y")
+| eval host=upper(host)
+| table format_time, host, package, package_title, patch_status , Message

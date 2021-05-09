@@ -1,0 +1,147 @@
+index=yourIndex sourcetype=corecomponentvalidation earliest=-12h 
+            | dedup host,EventCode 
+            | eval hostname=lower(host)
+            | eval FQDN = if(like(ComputerName,"%.%"),lower(ComputerName),null()) 
+            | fields hostname, EventCode,FQDN 
+            | eval CoreComponentValidation="CoreComponentValidation Healthy" 
+            | eval BigFix=if(EventCode==13,"BigFix Healthy",null()) 
+            | eval SCOM=if(EventCode==11,"SCOM Healthy",null()) 
+            | eval SCCM=if(EventCode==10,"SCCM Healthy",null()) 
+            | eval Last_Contact=if(EventCode==13,_time,null()) 
+            | eval stg_flag="CCV"
+            | chart values(*) as * by hostname 
+            | append 
+                [| inputlookup enriched_mrcpdb_apps 
+                | search os_nm="*Windows*" AND arc_role_cd!="o" AND arc_role_cd!="s" AND invcategory="*Server*" 
+                | eval FQDN=hostname . "." . domain_name
+                | table hostname,FQDN 
+                | eval stg_flag="INV" 
+                    ] 
+            | eventstats dc(stg_flag) as stg_cnt,values(FQDN) as FQDN by hostname 
+            | where NOT (stg_cnt==2 AND isnull(EventCode)) 
+            
+            | fields - stg_*,EventCode
+            
+            | fillnull value="BigFix Unhealthy" BigFix 
+            | fillnull value="SCOM Unhealthy" SCOM 
+            | fillnull value="SCCM Unhealthy" SCCM 
+            | fillnull value="CoreComponentValidation Unhealthy" CoreComponentValidation
+            
+            | rename SCOM as "SCOM Status",BigFix as "BigFix Status",SCCM as "SCCM Status"   ,CoreComponentValidation as "CoreComponentValidation Status"
+            
+            | append [ 
+              | tstats count where index=wineventlog (sourcetype="WinEventLog:Security" OR sourcetype="XmlWinEventLog:Security") earliest=-12h  by host  
+              
+              | eval hostname=lower(host) 
+              | table hostname 
+              | eval Message="Splunk Healthy"
+              | eval stg_flag="wineventlog" 
+              | append 
+                  [| inputlookup enriched_mrcpdb_apps 
+                  | search os_nm="*Windows*" AND arc_role_cd!="o" AND arc_role_cd!="s" AND invcategory="*Server*" 
+                  | table hostname 
+                  | eval stg_flag="INV" 
+                      ] 
+              | eventstats dc(stg_flag) as stg_cnt by hostname 
+              | where NOT (stg_cnt==2 AND isnull(Message))
+              | fillnull value="Splunk Unhealthy" Message
+              | rename Message as "Splunk Status"
+            ]
+
+            | append [
+              | tstats count where index=wineventlog privman (sourcetype=WinEventLog:System OR sourcetype=XmlWinEventLog:System) earliest=-12h by host
+              | eval hostname=lower(host) 
+              | fields - count
+              | eval stg_flag="PowerBroker" 
+              | eval Message="PowerBroker Healthy"
+
+              | append 
+                  [| inputlookup enriched_mrcpdb_apps 
+                  | search os_nm="*Windows*" AND arc_role_cd!="o" AND arc_role_cd!="s" AND invcategory="*Server*" 
+                  | table hostname,domain_name 
+                  | eval stg_flag="INV" 
+                      ] 
+              | eventstats dc(stg_flag) as stg_cnt,values(domain_name) as domain_name by hostname 
+              | where NOT (stg_cnt==2 AND isnull(Message)) 
+              | fillnull value="PowerBroker Unhealthy" Message 
+              | rename Message as "PowerBroker Status"            
+            ]
+
+            | append [
+              | search  index=platform_control sourcetype=csvinputs source="*CrowdStrike_Server_*" earliest=-2h@h *Windows* 
+              | search os_version!="Windows 10" AND os_version!="Windows 7" AND os_version!="Windows 8.1" AND hostname!="None" 
+              | rex field=hostname mode=sed "s/(\..*)/""/g" 
+              | dedup hostname,last_seen 
+              | fields hostname ,last_seen,system_product_name,agent_version 
+              | eval last_seen=replace(last_seen,"Z"," UTC") 
+              | eval p_time=strptime(last_seen,"%Y-%m-%dT%H:%M:%S %Z") 
+              | eval delta = (now() - p_time)/3600 
+              | where delta <= 12 
+              | search system_product_name!="OptiPlex*" AND system_product_name!="Precision*"
+              | table hostname ,Message,agent_version 
+              | eval stg_flag="CrowdStrike" 
+              | eval Message="CrowdStrike Healthy"
+
+              | append 
+                  [| inputlookup enriched_mrcpdb_apps 
+                  | search os_nm="*Windows*" AND arc_role_cd!="o" AND arc_role_cd!="s" AND invcategory="*Server*" 
+                  | table hostname,domain_name 
+                  | eval stg_flag="INV" 
+                      ] 
+              | eventstats dc(stg_flag) as stg_cnt,values(domain_name) as domain_name by hostname 
+              | where NOT (stg_cnt==2 AND isnull(Message)) 
+              | fillnull value="CrowdStrike Unhealthy" Message 
+              | rename Message as "CrowdStrike Status"
+            ]         
+            
+            | fields - stg_cnt,stg_flag,_time
+            
+            | chart values(*) as * by hostname
+
+            | join type=left hostname [
+              | search index=platform_control sourcetype=universeactivitylogs earliest=-30d "Complete" "Success" "Windows Server" "Infrastructure Decommission"
+              | fields _time,_raw 
+              | rex field=_raw "(?<Time>[^,]+),(?<recordtype>[^,]+),(?<processkey>[^,]+),(?<username>[^,]+),(?<hostname>[^,]*),(?<serialnumber>[^,]*),(?<targetplatform>[^,]+),(?<action>[^,]+),(?<status>[^,]+),(?<result>[^,]+),(?<process>[^,]+),(?<cmticket>[^,]*),(?<Message>.*)" 
+              | where isnotnull(hostname) AND hostname!="" AND (action = "ProcessEnd" OR action = "Product Delivery") And (Message = "Phase1" OR Message = "Phase2") 
+              | sort 0 - _time 
+              | dedup hostname 
+              | table hostname, Message
+              | rename Message as "Decommission Status"
+            ]            
+            
+            | lookup enriched_mrcpdb_apps.csv hostname OUTPUT serial_no,arc_role_cd,vmrunningstate,os_release,PrimaryDNSIP
+            | eval InventoryStatus = if (isnull(serial_no) OR arc_role_cd=="o","Inventory Unhealthy","Inventory Healthy")
+            
+            | join type=left hostname [
+              | search index=wineventlog "LogName=Microsoft-Windows-GroupPolicy/Operational" EventCode=8006 OR EventID=8006 earliest=-4h | dedup host 
+              | eval hostname = lower(host)
+              | dedup hostname
+              | eval "Group Policy" = "Group Policy Healthy"
+              | table hostname, "Group Policy"
+            ]
+            
+            | join type=left hostname [
+              | search index=bigfix LastReportTime=* earliest=-24h Win20*
+              | eval hostname=lower(ComputerName)
+              | dedup hostname
+              | table hostname,LastReportTime
+            ]  
+
+            | fillnull value="BigFix Unhealthy" "BigFix Status"
+            | fillnull value="SCOM Unhealthy" "SCOM Status"
+            | fillnull value="SCCM Unhealthy" "SCCM Status"
+            | fillnull value="CoreComponentValidation Unhealthy" "CoreComponentValidation Status"
+            | fillnull value="CrowdStrike Unhealthy" "CrowdStrike Status"
+            | fillnull value="Splunk Unhealthy" "Splunk Status"
+            | fillnull value="PowerBroker Unhealthy" "PowerBroker Status"
+            | fillnull value="Group Policy Unhealthy" "Group Policy"
+
+            | eval Last_Contact = strftime(Last_Contact,"%Y-%m-%d")
+            | rename InventoryStatus as "Inventory Status",Last_Contact as "Last Contact",vmrunningstate as "VM Running State",os_release as "OS Release",PrimaryDNSIP as IP,arc_role_cd as "Inventory Mode",agent_version as "CrowdStrike Version",LastReportTime as "BFX Last Report Time"
+            | eval FQDN = coalesce(FQDN,hostname . "." . domain_name)
+            
+            
+            | eval extra_filter = if(like(hostname,"%-%") OR like(hostname,"agx%") OR like(lower(FQDN),"%localdomain%") OR like(lower(FQDN),"%frontlabs%"),"Filterout","Keep")
+            | search extra_filter="Keep"
+                         
+            | table hostname,FQDN,IP,"OS Release",SCOM*,SCCM*,Splunk*,BigFix*,PowerBroker*,CoreComponentValidation*,Inventory*,"CrowdStrike Status",Decomm*,"VM Running State","Inventory Mode","BFX Last Report Time"

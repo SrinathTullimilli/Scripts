@@ -1,0 +1,28 @@
+# Create Cipher Directories
+([Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey([Microsoft.Win32.RegistryHive]::LocalMachine,$env:COMPUTERNAME)).CreateSubKey('SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC4 40/128') | Out-Null
+([Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey([Microsoft.Win32.RegistryHive]::LocalMachine,$env:COMPUTERNAME)).CreateSubKey('SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC4 56/128') | out-null
+([Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey([Microsoft.Win32.RegistryHive]::LocalMachine,$env:COMPUTERNAME)).CreateSubKey('SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC4 128/128') | out-null
+
+
+# Disable RC4 Cipher (40/128; 56/128; 128/128)
+try {
+    if ((Get-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC4 40/128').enabled -ne 0) {    
+        New-ItemProperty -PATH 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC4 40/128' -Name "Enabled" -PropertyType DWORD -value 00000000
+    }
+    
+    if ((Get-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC4 56/128').enabled -ne 0) {    
+        New-ItemProperty -PATH 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC4 56/128' -Name "Enabled" -PropertyType DWORD -value 00000000
+    }
+
+    if ((Get-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC4 128/128').enabled -ne 0) {    
+        New-ItemProperty -PATH 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC4 128/128' -Name "Enabled" -PropertyType DWORD -value 00000000
+    }
+
+    Write-host "[DEBUG] RC4 Ciphers disabled on $env:COMPUTERNAME"
+
+}
+
+Catch {
+    write-host "[ERROR] Could not set one of the RC4 registry keys to 00000000.  Exiting"
+    Exit.
+}
